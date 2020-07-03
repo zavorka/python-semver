@@ -1128,3 +1128,16 @@ def test_next_version_with_versioninfo(version, part, expected):
 )
 def test_repr(version, expected):
     assert repr(version) == expected
+
+
+@pytest.mark.parametrize("operand", [None, False, 0, '', 'random string'])
+def test_should_raise_only_on_ordering_comparison_not_equality_comparison(operand):
+    assert version != operand
+    with(pytest.raises((TypeError, ValueError))):
+        version < operand
+    with(pytest.raises((TypeError, ValueError))):
+        version > operand
+    with(pytest.raises((TypeError, ValueError))):
+        version <= operand
+    with(pytest.raises((TypeError, ValueError))):
+        version >= operand

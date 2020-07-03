@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import argparse
 import collections
-from functools import wraps, partial
+from functools import wraps, partial, total_ordering
 import inspect
 import re
 import sys
@@ -139,21 +139,7 @@ def parse(version):
     return VersionInfo.parse(version).to_dict()
 
 
-def comparator(operator):
-    """Wrap a VersionInfo binary op method in a type-check."""
-
-    @wraps(operator)
-    def wrapper(self, other):
-        comparable_types = (VersionInfo, dict, tuple, list, str)
-        if not isinstance(other, comparable_types):
-            raise TypeError(
-                "other type %r must be in %r" % (type(other), comparable_types)
-            )
-        return operator(self, other)
-
-    return wrapper
-
-
+@total_ordering
 class VersionInfo(object):
     """
     A semver compatible version class.
@@ -190,6 +176,10 @@ class VersionInfo(object):
         """,
         re.VERBOSE,
     )
+
+    @classmethod
+    def comparable_types(cls):
+        return (cls, dict, tuple, list, str)
 
     def __init__(self, major, minor=0, patch=0, prerelease=None, build=None):
         self._major = int(major)
@@ -502,29 +492,23 @@ build='build.10')
             version = version.bump_patch()
         return version.bump_prerelease(prerelease_token)
 
-    @comparator
     def __eq__(self, other):
+        if not isinstance(other, VersionInfo.comparable_types()):
+            return False
+        if isinstance(other, str):
+            try:
+                other = parse_version_info(other)
+            except:
+                return False
         return self.compare(other) == 0
 
-    @comparator
-    def __ne__(self, other):
-        return self.compare(other) != 0
-
-    @comparator
     def __lt__(self, other):
+        if not isinstance(other, VersionInfo.comparable_types()):
+            raise TypeError(
+                "other type %r must be in %r"
+                % (type(other), VersionInfo.comparable_types())
+            )
         return self.compare(other) < 0
-
-    @comparator
-    def __le__(self, other):
-        return self.compare(other) <= 0
-
-    @comparator
-    def __gt__(self, other):
-        return self.compare(other) > 0
-
-    @comparator
-    def __ge__(self, other):
-        return self.compare(other) >= 0
 
     def __getitem__(self, index):
         """
